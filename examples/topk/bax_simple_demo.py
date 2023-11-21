@@ -4,8 +4,19 @@ from pathlib import Path
 import pickle
 import numpy as np
 import tensorflow as tf
+import matplotlib
+matplotlib.rcParams['text.usetex'] = False
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+
+# print current working directory
+import os
+print(f"Current working directory: {os.getcwd()}")
+
+# set path for importing modules
+import sys
+sys.path.append("./")
+print(f"Current working directory: {os.getcwd()}")
 
 from bax.alg.algorithms import TopK
 from bax.models.simple_gp import SimpleGp
@@ -18,9 +29,9 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.acq.visualize import AcqViz1D
 from bax.util.domain_util import unif_random_sample_domain
 
-import neatplot
-neatplot.set_style("fonts")
-neatplot.update_rc('font.size', 20)
+# import neatplot
+# neatplot.set_style("fonts")
+# neatplot.update_rc('font.size', 20)
 
 
 # Parse args
@@ -84,7 +95,7 @@ results_dir.mkdir(parents=True, exist_ok=True)
 
 # Set up img directory
 img_dir = results_dir /  f'images_{args.seed}'
-img_dir.mkdir(parents=True, exist_ok=False)
+img_dir.mkdir(parents=True, exist_ok=True)
 
 # Namespace to save results
 results = Namespace(
@@ -158,11 +169,13 @@ for i in range(args.n_iter):
         )
     # -- lims, labels, titles, etc
     ax.set(xlim=domain[0], ylim=domain[1])
-    ax.set_title("InfoBAX with Top-$k$ Algorithm")
+    ax.set_title("InfoBAX with Top-k Algorithm")
 
     # Save plot
     img_path = img_dir / f'topk_{i}'
-    neatplot.save_figure(str(img_path), 'pdf')
+    print(f"Saving image to {img_path}")
+    plt.savefig(str(img_path), bbox_inches='tight')
+    # neatplot.save_figure(str(img_path), 'pdf')
 
     # Query function, update data
     y_next = f(x_next)
