@@ -91,6 +91,7 @@ class PathwiseGPR(GPR, PathwiseGPModel):
                      **kwargs) -> CompositeSampler:
 
     if prior is None:
+      # gpflow_sampling.sampling.core.DenseSampler
       prior = sampling.priors.random_fourier(self.kernel,
                                              num_bases=num_bases,
                                              sample_shape=[num_samples],
@@ -98,7 +99,7 @@ class PathwiseGPR(GPR, PathwiseGPModel):
     elif num_bases is not None:
       assert prior.sample_shape == [num_samples]
 
-    diag = tf.convert_to_tensor(self.likelihood.variance)
+    diag = tf.convert_to_tensor(self.likelihood.variance) # float64
     return sampling.decoupled(self.kernel,
                               prior,
                               *self.data,

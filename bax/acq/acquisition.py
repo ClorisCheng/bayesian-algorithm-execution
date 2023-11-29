@@ -163,13 +163,36 @@ class AlgoAcqFunction(AcqFunction):
         output_list = []
         with Timer(f"Sample {self.params.n_path} execution paths"):
             # Initialize model fsl
-            self.model.initialize_function_sample_list(self.params.n_path)
+            self.model.initialize_function_sample_list(self.params.n_path) # self.params.n_path = 1
 
             # Run algorithm on function sample list
-            f_list = self.model.call_function_sample_list
-            algoset = AlgorithmSet(self.algorithm)
+            f_list = self.model.call_function_sample_list # GpfsGp.call_function_sample_list (from bax.models.gpfs_gp.GpfsGp)
+            algoset = AlgorithmSet(self.algorithm) # bax.alg.algorithms.AlgorithmSet
             exe_path_full_list, output_list = algoset.run_algorithm_on_f_list(
                 f_list, self.params.n_path
+            )
+
+            # Get crop of each exe_path in exe_path_list
+            exe_path_list = algoset.get_exe_path_list_crop()
+
+        return exe_path_list, output_list, exe_path_full_list
+    
+    def get_one_exe_path_and_output_samples(self):
+        """
+        Return exe_path_list and output_list respectively containing self.params.n_path
+        exe_path samples and associated outputs, using self.model and self.algorithm.
+        """
+        exe_path_list = []
+        output_list = []
+        with Timer(f"Sample {1} execution paths"):
+            # Initialize model fsl
+            self.model.initialize_function_sample_list(1) # self.params.n_path = 1
+
+            # Run algorithm on function sample list
+            f_list = self.model.call_function_sample_list # GpfsGp.call_function_sample_list (from bax.models.gpfs_gp.GpfsGp)
+            algoset = AlgorithmSet(self.algorithm) # bax.alg.algorithms.AlgorithmSet
+            exe_path_full_list, output_list = algoset.run_algorithm_on_f_list(
+                f_list, 1
             )
 
             # Get crop of each exe_path in exe_path_list

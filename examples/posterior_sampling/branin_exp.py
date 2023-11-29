@@ -18,6 +18,7 @@ from bax.models.gpfs_gp import GpfsGp
 from bax.models.stan_gp import get_stangp_hypers
 from bax.acq.acquisition import BaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
+from bax.acq.postsample import PostSampler
 from bax.util.domain_util import unif_random_sample_domain
 from bax.acq.visualize2d import AcqViz2D
 
@@ -29,7 +30,9 @@ from branin import branin, branin_xy
 # neatplot.update_rc('font.size', 20)
 
 
-seed = 11
+seed = 3318
+# seed = np.random.randint(10000)
+print(f"*[INFO] Seed: {seed}")
 np.random.seed(seed)
 tf.random.set_seed(seed)
 
@@ -42,10 +45,9 @@ def run_algo_on_mean_f(model_mf, algo_mf, n_samp_mf):
     exe_path_mf, output_mf = algo_mf.run_algorithm_on_f(f_mf)
     return exe_path_mf, output_mf
 
-
 # Set function
 f = branin
-
+f_min = f([-np.pi, 12.275])
 # Set algorithm details
 init_x = [4.8, 13.0]
 #init_x = [6.0, 10.0] # Center-right start
@@ -76,12 +78,31 @@ gp_params = get_stangp_hypers(f, domain=domain, n_samp=200)
 modelclass = GpfsGp
 
 # Set acquisition details
-acqfn_params = {"acq_str": "exe", "n_path": 2}
+acqfn_params = {"acq_str": "exe", "n_path": 100}
 
 n_rand_acqopt = 350
 
 # Run BAX loop
 n_iter = 30
+
+figures_dir = "examples/posterior_sampling/figures"
+results_dir = "examples/posterior_sampling/results"
+
+save_figure = False
+save_result = True
+if save_figure:
+    figures_dir = os.path.join(figures_dir, f"{seed}")
+    os.makedirs(figures_dir, exist_ok=True)
+if save_result:
+    regret_dir = os.path.join(results_dir, "regrets")
+    best_y_dir = os.path.join(results_dir, "best_y")
+    os.makedirs(regret_dir, exist_ok=True)
+    os.makedirs(best_y_dir, exist_ok=True)
+
+
+best_y = []
+regrets = []
+
 
 for i in range(n_iter):
     print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -95,8 +116,11 @@ for i in range(n_iter):
     # Set and optimize acquisition function
     acqfn = BaxAcqFunction(acqfn_params, model, algo) # x
     x_test = unif_random_sample_domain(domain, n=n_rand_acqopt) # x 
-    acqopt = AcqOptimizer({"x_batch": x_test})
-    x_next = acqopt.optimize(acqfn)
+    # acqopt = AcqOptimizer({"x_batch": x_test})
+    # x_next = acqopt.optimize(acqfn)
+    postsampler = PostSampler({"x_batch": x_test})
+    x_next = postsampler.optimize(acqfn)
+
 
     # Compute current expected output
     expected_output = np.mean(acqfn.output_list, 0)
@@ -117,45 +141,57 @@ for i in range(n_iter):
     print(f"\tCurrent expected f(output) = {expected_fout}")
 
     # Plot
-    fig, ax = plt.subplots(figsize=(6, 6))
-    vizzer = AcqViz2D({"n_path_max": 25}, (fig, ax))
-    vizzer.plot_function_contour(branin_xy, domain) 
-    h1 = vizzer.plot_exe_path_samples(acqfn.exe_path_full_list) # blue, alpha = 0.1
-    h2 = vizzer.plot_model_data(model.data) # black
-    #h3 = vizzer.plot_expected_output(output_mf)
-    h4 = vizzer.plot_optima([(-3.14, 12.275), (3.14, 2.275), (9.425, 2.475)]) # yellow square
-    h5 = vizzer.plot_output_samples(acqfn.output_list) # dark violet
-    h6 = vizzer.plot_next_query(x_next) # pink
-    ax.text(
-        -4.75, 0.5, f"Iteration=${i+1}$",
-        bbox=dict(boxstyle="round", fc="white", alpha=0.4, ec="none")
-    )
+    if save_figure:
+        fig, ax = plt.subplots(figsize=(6, 6))
+        vizzer = AcqViz2D({"n_path_max": 25}, (fig, ax))
+        vizzer.plot_function_contour(branin_xy, domain)
+        # h1 = vizzer.plot_exe_path_samples(acqfn.exe_path_full_list)
+        h2 = vizzer.plot_model_data(model.data)
+        #h3 = vizzer.plot_expected_output(output_mf)
+        h4 = vizzer.plot_optima([(-3.14, 12.275), (3.14, 2.275), (9.425, 2.475)])
+        h5 = vizzer.plot_output_samples(acqfn.output_list)
+        h6 = vizzer.plot_next_query(x_next)
+        ax.text(
+            -4.75, 0.5, f"Iteration=${i+1}$",
+            bbox=dict(boxstyle="round", fc="white", alpha=0.4, ec="none")
+        )
 
-    # Legend
-    #vizzer.make_legend([h2[0], h4[0], h1[0], h3[0]]) # For out-of-plot legend
-    #vizzer.make_legend([h2[0], h3[0], h1[0], h4[0]]) # For in-plot legend
+        # Legend
+        #vizzer.make_legend([h2[0], h4[0], h1[0], h3[0]]) # For out-of-plot legend
+        #vizzer.make_legend([h2[0], h3[0], h1[0], h4[0]]) # For in-plot legend
 
-    # Axis lims and labels
-    offset = 0.3
-    ax.set_xlim((domain[0][0] - offset, domain[0][1] + offset))
-    ax.set_ylim((domain[1][0] - offset, domain[1][1] + offset))
-    ax.set_aspect("equal", "box")
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_title("InfoBAX with Evolution Strategy")
+        # Axis lims and labels
+        offset = 0.3
+        ax.set_xlim((domain[0][0] - offset, domain[0][1] + offset))
+        ax.set_ylim((domain[1][0] - offset, domain[1][1] + offset))
+        ax.set_aspect("equal", "box")
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_title("Posterior Sampling")
 
-    # Save plot
-    # neatplot.save_figure(f"branin_bax_{i}", "pdf")
-    plt.savefig(f"branin_bax_{i}", bbox_inches='tight')
+        # Save plot
+        # neatplot.save_figure(f"branin_bax_{i}", "pdf")
+    
+        plt.savefig(f"{figures_dir}/{i}", bbox_inches='tight')
+        # plt.savefig(f"branin_bax_{i}", bbox_inches='tight')
 
-    # Show, pause, and close plot
-    #plt.show()
-    #inp = input("Press enter to continue (any other key to stop): ")
-    #if inp:
-        #break
-    plt.close()
+        # Show, pause, and close plot
+        #plt.show()
+        #inp = input("Press enter to continue (any other key to stop): ")
+        #if inp:
+            #break
+        plt.close()
 
     # Query function, update data
     y_next = f(x_next)
     data.x.append(x_next)
     data.y.append(y_next)
+    # y_vals.append(y_next)
+
+    # Save results
+    best_y.append(np.min(data.y))
+    regrets.append(np.min(data.y) - f_min)
+
+    if save_result:
+        np.save(f"{best_y_dir}/{seed}.npy", best_y)
+        np.save(f"{regret_dir}/{seed}.npy", regrets)

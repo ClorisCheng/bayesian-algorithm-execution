@@ -560,7 +560,7 @@ class AlgorithmSet:
         # Step through algorithms
         x_list = [algo.get_next_x() for algo in algo_list]
         while any(x is not None for x in x_list):
-            y_list = f_list(x_list)
+            y_list = f_list(x_list) # TODO: what is f_list?
             x_list_new = []
             for algo, x, y in zip(algo_list, x_list, y_list):
                 if x is not None:
@@ -571,6 +571,9 @@ class AlgorithmSet:
                     x_next = None
                 x_list_new.append(x_next)
             x_list = x_list_new
+
+        # at the end, 1 algo, 1 exe_path, 150 x's in the execution path
+        # TODO: how they are choosing the initial x's?
 
         # Store algo_list
         self.algo_list = algo_list

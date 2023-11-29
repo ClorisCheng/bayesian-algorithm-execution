@@ -6,6 +6,7 @@ using a kernel based on a given distance matrix, and fixed sigma.
 import time
 import pickle
 import pathlib
+# import stan as pystan
 import pystan
 
 # To stop pystan-produced matplotlib logging output
