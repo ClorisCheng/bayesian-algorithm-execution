@@ -12,7 +12,7 @@ class PostSampler(Base):
     Class for optimizing acquisition functions.
     """
 
-    def set_params(self, params):
+    def set_params(self, params, **kwargs):
         """Set self.params, the parameters for the AcqOptimizer."""
         super().set_params(params)
         params = dict_to_namespace(params)
@@ -23,7 +23,9 @@ class PostSampler(Base):
         self.params.x_batch = getattr(params, "x_batch", default_x_batch)
         self.params.remove_x_dups = getattr(params, "remove_x_dups", False)
 
-    def optimize(self, acqfunction):
+        self.algo_name = kwargs.get("algo_name", None)
+
+    def optimize(self, acqfunction, **kwargs):
         """
         Optimize acquisition function.
 
@@ -35,7 +37,7 @@ class PostSampler(Base):
 
         # Set self.acqfunction
         self.set_acqfunction(acqfunction)
-
+        algo_name = kwargs.get("algo_name", None)
         # Initialize acquisition function
         # self.acqfunction.initialize()
         exe_path_list, output_list, full_list = self.acqfunction.get_one_exe_path_and_output_samples()
@@ -48,7 +50,12 @@ class PostSampler(Base):
         else:
             self.acqfunction.exe_path_list = full_list
 
-        return output_list[0]
+        if algo_name == "topk":
+            return output_list[0].x
+        elif algo_name == "evolution":
+            return output_list[0]
+        else:
+            raise NotImplementedError(f"Posterior sampling not implemented for {self.algo_name}!")
 
     def set_acqfunction(self, acqfunction):
         """Set self.acqfunction, the acquisition function."""
